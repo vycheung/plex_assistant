@@ -38,7 +38,9 @@ from .helpers import (
 
 async def async_setup(hass: HomeAssistant, config: Config):
     if DOMAIN in config:
-        changes_url = "https://github.com/maykar/plex_assistant/blob/master/ver_one_update.md"
+        changes_url = (
+            "https://github.com/maykar/plex_assistant/blob/master/ver_one_update.md"
+        )
         message = (
             "Configuration is now handled in the UI, please read the %s for how to migrate "
             "to the new version and more info.%s "
@@ -47,8 +49,12 @@ async def async_setup(hass: HomeAssistant, config: Config):
             "title": "Plex Assistant Breaking Changes",
             "message": message % (f"[change log]({changes_url})", "."),
         }
-        await hass.services.async_call("persistent_notification", "create", service_data, False)
-        _LOGGER.warning("Plex Assistant: " + message % ("change log", f". {changes_url}"))
+        await hass.services.async_call(
+            "persistent_notification", "create", service_data, False
+        )
+        _LOGGER.warning(
+            "Plex Assistant: " + message % ("change log", f". {changes_url}")
+        )
     return True
 
 
@@ -76,7 +82,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.debug(f"Media titles: {len(_pa.media['all_titles'])}")
         return _pa
 
-    pa = await hass.async_add_executor_job(pa_executor, server, list(start_script.keys()))
+    pa = await hass.async_add_executor_job(
+        pa_executor, server, list(start_script.keys())
+    )
 
     tts_dir = hass.config.path() + "/www/plex_assist_tts/"
     if tts_errors and not os.path.exists(tts_dir):
@@ -97,24 +105,36 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         _LOGGER.debug("Command: %s", command)
 
         command = command.lower()
-        if keyword_replace and any(keyword.lower() in command for keyword in keyword_replace.keys()):
+        if keyword_replace and any(
+            keyword.lower() in command for keyword in keyword_replace.keys()
+        ):
             for keyword in keyword_replace.keys():
-                command = command.replace(keyword.lower(), keyword_replace[keyword].lower())
+                command = command.replace(
+                    keyword.lower(), keyword_replace[keyword].lower()
+                )
 
         get_devices(hass, pa)
         command = ProcessSpeech(pa, localize, command, default_device).results
-        _LOGGER.debug("Processed Command: %s", {i: command[i] for i in command if i != "library" and command[i]})
+        _LOGGER.debug(
+            "Processed Command: %s",
+            {i: command[i] for i in command if i != "library" and command[i]},
+        )
 
         if not command["device"] and not default_device:
             no_device_error(localize)
             return
 
-        if pa.media["updated"] < pa.library.search(sort="addedAt:desc", limit=1)[0].addedAt:
+        if (
+            pa.media["updated"]
+            < pa.library.search(sort="addedAt:desc", limit=1)[0].addedAt
+        ):
             type(pa).media.fget.cache_clear()
             _LOGGER.debug(f"Updated Library: {pa.media['updated']}")
 
         device = fuzzy(command["device"] or default_device, pa.device_names)
-        device = run_start_script(hass, pa, command, start_script, device, default_device)
+        device = run_start_script(
+            hass, pa, command, start_script, device, default_device
+        )
 
         _LOGGER.debug("PA Devices: %s", pa.devices)
         if device[1] < 60:
@@ -140,10 +160,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
         _LOGGER.debug("Media: %s", str(media.items))
 
+        type = ""
+        if isinstance(media.items, list):
+            type = media.items[0].listType
+        else:
+            if media.items.type == "playlist":
+                type = media.items.playlistType
+            else:
+                type = media.items.listType
+
         payload = '%s{"playqueue_id": %s, "type": "%s", "plex_server": "%s"}' % (
             "plex://" if device["device_type"] in ["cast", "sonos"] else "",
             media.playQueueID,
-            media.playQueueType,
+            type,
             server._server.friendlyName,
         )
 
